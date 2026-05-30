@@ -19,3 +19,17 @@
 
 // 5. PATCH: The PATCH method is used to apply partial modifications to a resource. It is not idempotent, meaning that multiple identical requests may have different effects. 
 
+// what are middlewares ?
+// Middleware functions are functions that have access to the request object (req), the response object (res), and the next middleware function in the application’s request-response cycle. These functions can perform various tasks such as executing code, making changes to the request and response objects, ending the request-response cycle, or calling the next middleware function in the stack. Middleware is commonly used for tasks like authentication, logging, error handling, and more. It allows developers to modularize their code and separate concerns, making it easier to manage and maintain the application.
+
+// In the context of Express.js, middleware functions are executed in the order they are defined. When a request is made to the server, it passes through each middleware function until it reaches the route handler that matches the request. If a middleware function does not end the request-response cycle (by sending a response or calling next()), it will pass control to the next middleware function in the stack. This allows for a flexible and powerful way to handle various aspects of the application’s functionality.
+
+// In the provided code snippet, we have two middleware functions: adminAuth and userAuth. These functions are responsible for checking the authorization of admin and user requests, respectively. They check for a specific token and determine if the request is authorized. If the request is not authorized, they send a 401 Unauthorized response. If the request is authorized, they call next() to pass control to the next middleware function or route handler in the stack.
+
+// app.use vs app.all 
+// app.use() is a method in Express.js that is used to apply middleware functions to the application. It can be used to apply middleware to all routes or specific routes. When you use app.use(), the middleware function will be executed for every request that matches the specified route(s). For example, if you use app.use("/admin", adminAuth), the adminAuth middleware will be executed for every request that starts with "/admin".
+
+// On the other hand, app.all() is a method in Express.js that is used to define a route handler for all HTTP methods (GET, POST, PUT, DELETE, etc.) for a specific route. When you use app.all(), the route handler will be executed for any HTTP method that matches the specified route. For example, if you use app.all("/admin", adminAuth), the adminAuth route handler will be executed for any HTTP method (GET, POST, etc.) that starts with "/admin".
+
+// In summary, app.use() is used to apply middleware functions to routes, while app.all() is used to define route handlers for all HTTP methods for a specific route.
+
