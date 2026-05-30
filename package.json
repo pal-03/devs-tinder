@@ -1,0 +1,23 @@
+{
+  "name": "dev-tinder-be",
+  "version": "1.0.0",
+  "description": "devs tinder",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon",
+    "dev:legacy": "nodemon -L"
+  },
+  "keywords": [
+    "js",
+    "nodejs"
+  ],
+  "author": "swayam",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
