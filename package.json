@@ -5,8 +5,9 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "dev": "nodemon",
-    "dev:legacy": "nodemon -L"
+    "dev": "nodemon -L",
+    "dev:legacy": "nodemon -L",
+    "seed:users": "node src/scripts/seedUsers.js"
   },
   "keywords": [
     "js",
@@ -15,7 +16,9 @@
   "author": "swayam",
   "license": "ISC",
   "dependencies": {
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "mongoose": "^9.6.3",
+    "validator": "^13.15.35"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
