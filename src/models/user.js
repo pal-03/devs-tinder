@@ -1,5 +1,7 @@
 const mongoose = require("mongoose");
-const validator = require("validator"); 
+const validator = require("validator");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 // The validator library is used for validating and sanitizing strings.
 //  In this code, it is used to validate the emailId field to ensure that it contains a 
 // valid email address and to validate the password field to ensure that it meets
@@ -101,6 +103,52 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Moongose schema methods
+// The getJWT method is an instance method defined on the userSchema that generates
+//  a JSON Web Token (JWT) for the authenticated user.
+//  It uses the jsonwebtoken library to create a token by signing the user's unique
+//  identifier (_id) with a secret key ("DEV@Tinder$790").
+//  The generated token can be used for authentication purposes,
+//  allowing the client to include it in subsequent requests to access protected resources
+//  in the application.
+//  By calling user.getJWT(), we can generate a JWT token for the 
+// authenticated user, which can then be sent back to the client and stored in cookies 
+// or local storage for subsequent requests to access protected resources in the application.
+userSchema.methods.getJWT = async function () {
+  const user = this; // The getJWT method is defined as an instance method on the userSchema, which means that it can be called on individual user documents.
+  //  When we call user.getJWT(), the this keyword refers to the specific user document
+  //  on which the method is being called. This allows us to access the properties of that 
+  // user document (such as _id) and use them to generate a JWT token that 
+  // is specific to that user. By using this in the getJWT method, 
+  // we can ensure that the generated token is associated with the correct user
+  //  and can be used for authentication purposes in the application.
+
+  const token = await jwt.sign({ _id: user._id }, "DEV@Tinder$790", {
+    expiresIn: "7d",
+  });
+
+  return token;
+};
+
+// The validatePassword method is an instance method defined on the userSchema that 
+// compares a password input by the user with the hashed password stored in the database.
+//  It uses the bcrypt library to compare the plaintext password input by the user with
+//  the hashed password stored in the user document
+// . The method returns a boolean value indicating whether the provided 
+// password is valid or not. This allows us to securely validate user credentials
+//  during login or authentication processes in the application.
+userSchema.methods.validatePassword = async function (passwordInputByUser) {
+  const user = this;
+  const passwordHash = user.password;
+
+  const isPasswordValid = await bcrypt.compare(
+    passwordInputByUser,
+    passwordHash
+  );
+
+  return isPasswordValid;
+};
 
 // .model() method is used to create a Mongoose model based on the defined schema. The first argument is the name of the model (in this case, "User"), and the second argument is the schema that defines the structure of the documents in the collection. The model will be used to interact with the MongoDB collection for users, enabling us to perform operations like creating, reading, updating, and deleting user documents in the database.
 module.exports = mongoose.model("User", userSchema);
