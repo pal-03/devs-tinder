@@ -27,8 +27,8 @@ const userAuth = async (req, res, next) => {
     // we have used cookie parser middleware in our app.js file to parse the cookies attached to the client request object.
     //  When a client sends a request with cookies (e.g., for authentication or session management), this middleware will automatically parse the cookies and make them available in the req.cookies object for further processing in the route handlers. This allows you to easily access the cookies sent by the client and use them to perform operations such as verifying authentication tokens or managing user sessions in your application. In this code, we are accessing the cookies from the incoming request using req.cookies to retrieve the token that was set during the login process. We can then use this token to verify the user's identity and retrieve their profile information securely.
     const { token } = req.cookies;
-    if (!token) {
-      throw new Error("Token is not valid!!!!!!!!!");
+    if (!token || token === "null" || token === "undefined") {
+      return res.status(401).send("ERROR: Authentication required");
     }
 
     // extracted the logic of verifying the token and fetching the user from the database
@@ -66,7 +66,19 @@ const userAuth = async (req, res, next) => {
     //  identity and permissions.
     next();
   } catch (err) {
-    res.status(400).send("ERROR: " + err.message);
+    if (
+      err.name === "JsonWebTokenError" ||
+      err.name === "TokenExpiredError" ||
+      err.name === "NotBeforeError"
+    ) {
+      return res.status(401).send("ERROR: Invalid or expired token");
+    }
+
+    if (err.message === "User not found") {
+      return res.status(401).send("ERROR: Authentication required");
+    }
+
+    res.status(500).send("ERROR: Authentication failed");
   }
   // console.log("User auth is getting checked!!");
   // const token = "xyzabc";

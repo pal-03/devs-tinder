@@ -16,6 +16,38 @@ const validateSignUpData = (req) => {
   }
 };
 
+// The validateEditProfileData function is a custom validation function that checks
+//  if the fields being edited in the user profile are allowed to be edited.
+//  It takes the request object (req) as an argument and defines an array of
+//  allowedEditFields, which includes the fields that are permitted to be edited
+//  (firstName, lastName, email
+const validateEditProfileData = (req) => {
+  const allowedEditFields = [
+    "firstName",
+    "lastName",
+    "emailId",
+    "photoUrl",
+    "gender",
+    "age",
+    "about",
+    "skills",
+  ];
+
+  // The function uses Object.keys(req.body) to get an array of the keys (field names)
+  //  in the request body, and then it uses the every method to check if every key 
+  // in the request body is included in the allowedEditFields array.
+  //  If there is any key in the request body that is not included in the allowedEditFields 
+  // array, the function will return false, indicating that the edit request is invalid.
+  //  If all keys in the request body are included in the allowedEditFields array, 
+  // the function will return true, indicating that the edit request is valid.
+  const isEditAllowed = Object.keys(req.body).every((field) =>
+    allowedEditFields.includes(field)
+  );
+
+  return isEditAllowed;
+};
+
 module.exports = {
   validateSignUpData,
+  validateEditProfileData,
 };
