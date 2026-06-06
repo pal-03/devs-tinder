@@ -120,4 +120,98 @@ userRouter.get("/user/connections", userAuth, async (req, res) => {
   }
 });
 
+
+// The code also defines another GET route for retrieving a feed of users for the 
+// logged-in user. This route is defined at the path "/feed" and is protected by 
+// the userAuth middleware. When a GET request is made to this route,
+//  the server will execute the provided asynchronous function to handle the logic for
+//  fetching a feed of users for the logged-in user. The function will 
+// first retrieve all connection requests where either the fromUserId or toUserId matches
+//  the logged-in user's ID. It will then create a set of user IDs to hide from the feed,
+//  which includes both the fromUserId and toUserId of these connection requests. Finally, 
+// it will query the User collection to find all users whose IDs are not in the set of
+//  hidden user IDs and are not equal to the logged-in user's ID, and return this data
+//  in a JSON response. If there is an error during this process, it will return a
+//  400 status code with an error message.
+userRouter.get("/feed", userAuth, async (req, res) => {
+  try {
+    // get the logged in user's details from the request object (req.user)
+    //  and store it in the loggedInUser variable.
+    const loggedInUser = req.user;
+
+    // get page and limit from query params for pagination, 
+    // if not provided set default values
+    const page = parseInt(req.query.page) || 1;
+    let limit = parseInt(req.query.limit) || 10;
+    limit = limit > 50 ? 50 : limit;
+    const skip = (page - 1) * limit;
+
+    // The code then retrieves all connection requests where either the fromUserId 
+    // or toUserId matches the logged-in user's ID. It uses the find method with an
+    //  $or operator to specify that either condition can be true for a document 
+    // to match the query. The results are stored in the connectionRequests variable. 
+
+    // The code then creates a set of user IDs to hide from the feed, which includes 
+    // both the fromUserId and toUserId of these connection requests. 
+    // It iterates over the connectionRequests array and adds both the
+    //  fromUserId and toUserId to the hideUsersFromFeed set. This way, 
+    // we can keep track of all users who have a connection request with the
+    //  logged-in user, whether they are the sender or recipient of the request.
+    const connectionRequests = await ConnectionRequest.find({
+      $or: [{ fromUserId: loggedInUser._id }, { toUserId: loggedInUser._id }],
+    }).select("fromUserId  toUserId"); // send only fromUserId and toUserId in the result
+    //  as we only need these fields to hide users from feed
+    // we can use populate here to get the user details of fromUserId and toUserId,
+    //  but it will be an additional overhead as we only need the user IDs to hide
+    //  from feed, so we can directly use the ObjectId values of fromUserId and toUserId
+    //  without populating them.
+
+    const hideUsersFromFeed = new Set();
+    connectionRequests.forEach((req) => {
+      hideUsersFromFeed.add(req.fromUserId.toString());
+      hideUsersFromFeed.add(req.toUserId.toString());
+    });
+
+    // The code then queries the User collection to find all users whose IDs
+    //  are not in the set of hidden user IDs and are not equal to the logged-in user's 
+    // ID. It uses the find method with $and and $nin operators to specify these conditions. 
+    // The results are stored in the users variable. Finally, it returns this
+    //  data in a JSON response. If there is an error during this process, 
+    // it will return a 400 status code with an error message.
+
+
+    // $nin operator is used to specify that the _id field of the user documents
+    //  should not be in the array of hidden user IDs (hideUsersFromFeed)
+    //  and should not be equal to the logged-in user's ID (loggedInUser._id).
+    //  This ensures that we only retrieve users who are not connected to the 
+    // logged-in user and are not the logged-in user themselves,
+    //  effectively creating a feed of potential new connections for the user.
+
+    // $ne operator is used to specify that the _id field of the user documents 
+    // should not be equal to the logged-in user's ID (loggedInUser._id). 
+    // This ensures that we do not include the logged-in user in their 
+    // own feed of potential connections.
+    const users = await User.find({
+      $and: [
+        { _id: { $nin: Array.from(hideUsersFromFeed) } },
+        { _id: { $ne: loggedInUser._id } },
+      ],
+    })
+      .select(USER_SAFE_DATA) // do not send pwd and emailId in the result
+      .skip(skip) // The skip method is used to skip a certain number of documents
+      //  in the result set based on the page and limit values for pagination. 
+      // It calculates the number of documents to skip by multiplying the (page - 1) 
+      // by the limit, allowing us to retrieve the correct set of users
+      //  for the requested page.
+      .limit(limit);
+
+      // The code then returns the data of the users in a JSON response.
+      //  If there is an error during this process, it will return a 400 
+      // status code with an error message.
+    res.json({ data: users });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 module.exports = userRouter;

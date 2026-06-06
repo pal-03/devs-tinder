@@ -29,8 +29,14 @@ authRouter.post("/signup", async (req, res) => {
       skills,
     });
 
-    await user.save();
-    res.status(201).send("User added successfully!");
+    const savedUser = await user.save();
+    const token = await savedUser.getJWT();
+
+    res.cookie("token", token, {
+      expires: new Date(Date.now() + 8 * 3600000),
+    });
+
+    res.json({ message: "User Added successfully!", data: savedUser });
   } catch (err) {
     res.status(400).send("ERROR : " + err.message);
   }
@@ -66,7 +72,7 @@ authRouter.post("/login", async (req, res) => {
         //  in same-site requests, while still allowing it to be sent in top-level navigation
         //  and GET requests initiated by third-party websites.
       });
-      res.send("Login Successful!!!");
+      res.json({ message: "Login Successful!", data: user });
     } else {
       throw new Error("Invalid credentials");
     }

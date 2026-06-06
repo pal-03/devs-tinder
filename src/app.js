@@ -16,7 +16,24 @@ const PORT = process.env.PORT || 7777;
 app.use(express.json());// 
 // This line of code is a middleware function in an Express.js application that parses incoming JSON payloads in the request body. When a client sends a request with a JSON payload (e.g., when creating a new user or updating user information), this middleware will automatically parse the JSON data and make it available in the `req.body` object for further processing in the route handlers. This allows you to easily access the data sent by the client and use it to perform operations such as saving to the database or sending responses back to the client.
 app.use(cookieParser()); // This line of code is a middleware function in an Express.js application that parses cookies attached to the client request object. When a client sends a request with cookies (e.g., for authentication or session management), this middleware will automatically parse the cookies and make them available in the `req.cookies` object for further processing in the route handlers. This allows you to easily access the cookies sent by the client and use them to perform operations such as verifying authentication tokens or managing user sessions in your application.
+const cors = require("cors");
 
+// The code uses the cors middleware to enable Cross-Origin Resource Sharing (CORS)
+//  in the Express.js application. CORS is a security feature implemented by web browsers
+//  that restricts web pages from making requests to a different domain than the one
+//  that served the web page. By using the cors middleware, we can specify which 
+// origins are allowed to access our server's resources and how they can interact with them.
+//  In this case, we are allowing requests from "http://localhost:5173" and enabling 
+// credentials (such as cookies) to be included in cross-origin requests. This is important
+//  for allowing our frontend application (running on localhost:5173) to communicate 
+// with our backend server (running on a different port) while maintaining security 
+// and proper handling of authentication tokens or session cookies.
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
 // JS object vs JSON:
 
 // JavaScript Object (JS Object):
