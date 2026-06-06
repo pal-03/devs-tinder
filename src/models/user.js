@@ -33,7 +33,9 @@ const userSchema = new mongoose.Schema(
       lowercase: true, // This means that the value of the emailId field will be automatically converted to lowercase before being saved to the database. This is useful for ensuring consistency in email addresses, as it allows users to enter their email in any case (e.g., "
       // Example: If a user enters "sws JDKD" as their email, it will be stored in the database as "sws jdjd". This helps to avoid issues with case sensitivity when users try to log in or search for their email address in the database.
       required: true,
-      unique: true, // This means that the emailId field must be unique across all user documents in the database. If a user tries to create a document with an emailId that already exists, Mongoose will throw a validation error.
+      unique: true, // This means that the emailId field must be unique across all user documents in the database.
+      //  If a user tries to create a document with an emailId that already exists,
+      //  Mongoose will throw a validation error.
       trim: true,
       validate(value) {
         // validate function is a custom validation function that checks 
@@ -67,10 +69,14 @@ const userSchema = new mongoose.Schema(
       // If the value of the gender field is not one of these allowed values,
       //  the function will throw an error with the message "Gender data is not valid". This ensures that only valid gender values are stored in the database for the user documents.    
       // it takes the value of the gender field as an argument and checks if it is included in the array of allowed values
-      validate(value) {
-        if (!["male", "female", "others"].includes(value)) {
-          throw new Error("Gender data is not valid");
-        }
+      // validate(value) {
+      //   if (!["male", "female", "others"].includes(value)) {
+      //     throw new Error("Gender data is not valid");
+      //   }
+      // },/
+       enum: {
+        values: ["male", "female", "other"],
+        message: `{VALUE} is not a valid gender type`,
       },
     },
     photoUrl: {

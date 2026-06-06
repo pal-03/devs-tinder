@@ -81,6 +81,7 @@ app.use(cookieParser()); // This line of code is a middleware function in an Exp
 const authRouter = require("./routes/auth");
 const profileRouter = require("./routes/profile");
 const requestRouter = require("./routes/request");
+const userRouter = require("./routes/user");
 
 // Login API - POST /login - login a user using email and password
 // This API endpoint allows clients to log in a user by providing their email and password. When a POST request is made to the /login endpoint with the emailId and password in the request body, the server will attempt to find a user document in the MongoDB collection that matches the provided emailId. If a user is found, it will then compare the provided password with the hashed password stored in the database using bcrypt.compare. If the password is valid, it will return a success message in the response. If the user is not found or if the password is invalid, it will throw an error with an "Invalid credentials" message, which will be caught and returned as a response with a status code of 400 (Bad Request). This allows clients to authenticate users and access protected resources in the application based on their login status.
@@ -260,6 +261,7 @@ app.use("/", requestRouter); // it tells app that when a request comes in that m
 //  request-related routes defined in requestRouter into our main Express application,
 //  allowing us to handle requests related to sending connection requests through the 
 // routes defined in requestRouter.
+app.use("/", userRouter);
 
 // Get user by email
 // This API endpoint allows clients to retrieve a user from the database based on their email address. When a GET request is made to the /user endpoint with an emailId in the request body, the server will attempt to find a user document in the MongoDB collection that matches the provided emailId. If a user is found, it will return the user data in the response. If no user is found with the given emailId, it will return a 404 status code with a "User not found" message. If there is an error during the database query, it will return a 400 status code with an error message.
