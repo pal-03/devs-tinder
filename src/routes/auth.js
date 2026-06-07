@@ -32,6 +32,12 @@ authRouter.post("/signup", async (req, res) => {
     const savedUser = await user.save();
     const token = await savedUser.getJWT();
 
+    // after successful signup, we generate a JWT token for the newly created user 
+    // and set it in an HTTP-only cookie that expires in 8 hours. 
+    // This allows the user to be automatically logged in after signing up,
+    //  without needing to manually log in again. The token is stored securely 
+    // in the cookie, which helps protect it from being accessed by client-side 
+    // JavaScript and mitigates potential security risks.
     res.cookie("token", token, {
       expires: new Date(Date.now() + 8 * 3600000),
     });
@@ -72,7 +78,10 @@ authRouter.post("/login", async (req, res) => {
         //  in same-site requests, while still allowing it to be sent in top-level navigation
         //  and GET requests initiated by third-party websites.
       });
-      res.json({ message: "Login Successful!", data: user });
+      const safeUser = user.toObject();
+      delete safeUser.password;
+
+      res.json({ message: "Login Successful!", data: safeUser });
     } else {
       throw new Error("Invalid credentials");
     }

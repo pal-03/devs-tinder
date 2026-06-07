@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
 
 const connectDB = require("../config/database");
 const User = require("../models/user");
@@ -74,7 +75,14 @@ const seedUsers = async () => {
   try {
     await connectDB();
 
-    const operations = dummyUsers.map((user) => ({
+    const usersWithHashedPasswords = await Promise.all(
+      dummyUsers.map(async (user) => ({
+        ...user,
+        password: await bcrypt.hash(user.password, 10),
+      }))
+    );
+
+    const operations = usersWithHashedPasswords.map((user) => ({
       updateOne: {
         filter: { emailId: user.emailId },
         update: { $set: user },

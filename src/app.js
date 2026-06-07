@@ -30,8 +30,21 @@ const cors = require("cors");
 // and proper handling of authentication tokens or session cookies.
 app.use(
   cors({
-    origin: "http://localhost:5173",
-    credentials: true,
+    origin: "http://localhost:5173", // This line of code specifies the allowed origin for cross-origin requests.
+    //  In this case, it allows requests from "http://localhost:5173", 
+    // which is typically the address where a frontend application (e.g., React, Vue) 
+    // is running during development. By setting this origin, we are allowing our frontend 
+    // application to make requests to our backend server while maintaining security and
+    //  preventing unauthorized access from other origins.
+    credentials: true, // This line of code enables the inclusion of credentials 
+    // (such as cookies, authorization headers, or TLS client certificates) 
+    // in cross-origin requests. By setting `credentials: true`, we are allowing the
+    //  frontend application to include cookies in its requests to the backend server,
+    //  which is essential for maintaining user authentication and session management 
+    // across different origins. This is particularly important when the frontend
+    //  and backend are hosted on different domains or ports during development,
+    //  as it allows for secure communication while still enabling the necessary
+    //  credentials to be sent with each request.
   })
 );
 // JS object vs JSON:
