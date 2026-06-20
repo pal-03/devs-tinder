@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const validator = require("validator");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const { jwtSecret } = require("../config/env");
 // The validator library is used for validating and sanitizing strings.
 //  In this code, it is used to validate the emailId field to ensure that it contains a 
 // valid email address and to validate the password field to ensure that it meets
@@ -130,7 +131,7 @@ userSchema.methods.getJWT = async function () {
   // we can ensure that the generated token is associated with the correct user
   //  and can be used for authentication purposes in the application.
 
-  const token = await jwt.sign({ _id: user._id }, "DEV@Tinder$790", {
+  const token = await jwt.sign({ _id: user._id }, jwtSecret, {
     expiresIn: "7d",
   });
 

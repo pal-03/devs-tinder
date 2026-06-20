@@ -6,6 +6,29 @@ const { validateSignUpData } = require("../utils/validation");
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
 
+// Common cookie options used by both signup and login.
+// expires: Sets the cookie to expire in 8 hours (8 hours * 3600000 milliseconds/hour).
+// httpOnly: This flag ensures that the cookie cannot be accessed via client-side
+// JavaScript, enhancing security by preventing potential cross-site scripting (XSS)
+// attacks from stealing the token.
+// sameSite: "lax" helps mitigate CSRF attacks by restricting the cookie to be sent
+// only in same-site requests, while still allowing it to be sent in top-level
+// navigation and GET requests initiated by third-party websites.
+// secure: In production, this ensures the cookie is only sent over HTTPS.
+const getAuthCookieOptions = () => ({
+  expires: new Date(Date.now() + 8 * 3600000),
+  httpOnly: true,
+  sameSite: "lax",
+  secure: process.env.NODE_ENV === "production",
+});
+
+// Remove password before sending user data in API responses.
+const sanitizeUser = (user) => {
+  const safeUser = user.toObject();
+  delete safeUser.password;
+  return safeUser;
+};
+
 authRouter.post("/signup", async (req, res) => {
   try {
     // Validation of data
@@ -38,11 +61,12 @@ authRouter.post("/signup", async (req, res) => {
     //  without needing to manually log in again. The token is stored securely 
     // in the cookie, which helps protect it from being accessed by client-side 
     // JavaScript and mitigates potential security risks.
-    res.cookie("token", token, {
-      expires: new Date(Date.now() + 8 * 3600000),
-    });
+    res.cookie("token", token, getAuthCookieOptions());
 
-    res.json({ message: "User Added successfully!", data: savedUser });
+    res.status(201).json({
+      message: "User Added successfully!",
+      data: sanitizeUser(savedUser),
+    });
   } catch (err) {
     res.status(400).send("ERROR : " + err.message);
   }
@@ -69,17 +93,8 @@ authRouter.post("/login", async (req, res) => {
       const token = await user.getJWT();
 
       // Set the token in an HTTP-only cookie that expires in 8 hours
-      res.cookie("token", token, {
-        expires: new Date(Date.now() + 8 * 3600000),
-        httpOnly: true, // This flag ensures that the cookie cannot be accessed via
-        //  client-side JavaScript, enhancing security by preventing potential cross-site
-        //  scripting (XSS) attacks from stealing the token.
-        sameSite: "lax", // This flag helps mitigate CSRF attacks by restricting the cookie to be sent only
-        //  in same-site requests, while still allowing it to be sent in top-level navigation
-        //  and GET requests initiated by third-party websites.
-      });
-      const safeUser = user.toObject();
-      delete safeUser.password;
+      res.cookie("token", token, getAuthCookieOptions());
+      const safeUser = sanitizeUser(user);
 
       res.json({ message: "Login Successful!", data: safeUser });
     } else {
@@ -101,6 +116,7 @@ authRouter.post("/logout", async (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
     sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
   });
   res.send("Logout Successful!!");
 });

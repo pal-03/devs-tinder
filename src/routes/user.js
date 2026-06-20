@@ -92,8 +92,6 @@ userRouter.get("/user/connections", userAuth, async (req, res) => {
       .populate("fromUserId", USER_SAFE_DATA)
       .populate("toUserId", USER_SAFE_DATA);
 
-    console.log(connectionRequests);
-
     // The code then maps over the connectionRequests array to create a new array called data.
     //  For each connection request, it checks if the fromUserId matches the logged-in user's 
     // ID. If it does, it means that the logged-in user is the sender of the connection

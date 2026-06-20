@@ -16,6 +16,7 @@
 
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
+const { jwtSecret } = require("../config/env");
 
 // Similar to the adminAuth middleware, the userAuth middleware checks for a specific token to determine if the user is authorized. If the token does not match the expected value, it sends a 401 Unauthorized response. If the token is valid, it calls next() to allow the request to proceed to the next middleware function or route handler.
 // In a real application, you would typically extract the token from the request headers
@@ -44,7 +45,7 @@ const userAuth = async (req, res, next) => {
     //  By using jwt.verify, we can ensure that only requests with valid tokens can access
     //  protected routes and retrieve user information securely based on their authenticated 
     // identity.
-    const decodedObj = jwt.verify(token, "DEV@Tinder$790");
+    const decodedObj = jwt.verify(token, jwtSecret);
 
     const { _id } = decodedObj;
 

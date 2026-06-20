@@ -5,9 +5,11 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
+    "start:local": "node src/scripts/startLocal.js",
     "dev": "nodemon -L",
     "dev:legacy": "nodemon -L",
-    "seed:users": "node src/scripts/seedUsers.js"
+    "seed:users": "node src/scripts/seedUsers.js",
+    "test": "node --test"
   },
   "keywords": [
     "js",
@@ -25,6 +27,8 @@
     "validator": "^13.15.35"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "mongodb-memory-server": "^10.3.0",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.1.4"
   }
 }
