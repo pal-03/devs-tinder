@@ -3,6 +3,8 @@ const requestRouter = express.Router();
 const ConnectionRequest = require("../models/connectionRequest");
 const User = require("../models/user");
 
+const sendEmail = require("../utils/sendEmail");
+
 const { userAuth } = require("../middlewares/auth");
 
 // The code defines a POST route for sending connection requests between users.
@@ -87,10 +89,35 @@ requestRouter.post(
       //  the save method.
       const data = await connectionRequest.save();
 
+      // After saving the connection request, the code sends an email notification
+      //  to the recipient user (toUser) using the sendEmail utility function. 
+      // The email includes a subject indicating that there is a new friend request
+      //  from the sender (req.user.firstName) and a body that describes the status
+      //  of the connection request (e.g., "interested" or "ignored") in relation
+      //  to the recipient user (toUser.firstName). The result is returned as a compact
+      //  email status so the request can still succeed if notification delivery fails.
+      let emailStatus = { sent: false };
+      try {
+        const emailRes = await sendEmail.run(
+          "A new friend request from " + req.user.firstName,
+          req.user.firstName + " is " + status + " in " + toUser.firstName
+        );
+
+        emailStatus = emailRes.skipped
+          ? { sent: false, skipped: true, reason: emailRes.reason }
+          : { sent: true, messageId: emailRes.MessageId };
+      } catch (emailErr) {
+        emailStatus = {
+          sent: false,
+          error: emailErr.name || "EmailSendFailed",
+        };
+      }
+
       res.json({
         message:
           req.user.firstName + " is " + status + " in " + toUser.firstName,
         data,
+        email: emailStatus,
       });
     } catch (err) {
       res.status(400).send("ERROR: " + err.message);

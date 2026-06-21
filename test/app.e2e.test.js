@@ -38,6 +38,7 @@ before(async () => {
   process.env.JWT_SECRET = "test-secret";
   process.env.CLIENT_ORIGIN = "http://localhost:5173";
   process.env.PORT = "0";
+  process.env.DISABLE_EMAILS = "true";
 
   ({ startServer, stopServer } = require("../src/app"));
   ({ disconnectDB } = require("../src/config/database"));
