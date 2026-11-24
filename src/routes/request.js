@@ -3,7 +3,7 @@ const requestRouter = express.Router();
 const ConnectionRequest = require("../models/connectionRequest");
 const User = require("../models/user");
 
-const sendEmail = require("../utils/sendEmail");
+const emailNotifications = require("../utils/emailNotifications");
 
 const { userAuth } = require("../middlewares/auth");
 
@@ -99,10 +99,10 @@ requestRouter.post(
       let emailStatus = { sent: false, skipped: true };
       if (status === "interested") {
         try {
-          const emailRes = await sendEmail.run(
+          const emailRes = await emailNotifications.run(
+            toUser._id,
             "A new friend request from " + req.user.firstName,
-            req.user.firstName + " is " + status + " in " + toUser.firstName,
-            { toAddress: toUser.emailId }
+            req.user.firstName + " is " + status + " in " + toUser.firstName
           );
 
           emailStatus = emailRes.skipped

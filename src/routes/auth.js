@@ -5,6 +5,7 @@ const authRouter = express.Router(); // Creating a new router instance for authe
 const { validateSignUpData } = require("../utils/validation");
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
+const { setEmailConsent, requestEmailConfirmation } = require("../utils/emailConsent");
 
 // Common cookie options used by both signup and login.
 // expires: Sets the cookie to expire in 8 hours (8 hours * 3600000 milliseconds/hour).
@@ -33,6 +34,9 @@ authRouter.post("/signup", async (req, res) => {
   try {
     // Validation of data
     validateSignUpData(req);
+    if (req.body.emailNotifications !== undefined && typeof req.body.emailNotifications !== "boolean") {
+      throw new Error("emailNotifications must be a boolean");
+    }
 
     const { firstName, lastName, emailId, password, age, gender, photoUrl, about, skills } = req.body;
 
@@ -52,7 +56,9 @@ authRouter.post("/signup", async (req, res) => {
       skills,
     });
 
+    if (req.body.emailNotifications === true) setEmailConsent(user, true, "signup");
     const savedUser = await user.save();
+    const confirmation = req.body.emailNotifications === true ? await requestEmailConfirmation(savedUser) : undefined;
     const token = await savedUser.getJWT();
 
     // after successful signup, we generate a JWT token for the newly created user 
@@ -66,6 +72,7 @@ authRouter.post("/signup", async (req, res) => {
     res.status(201).json({
       message: "User Added successfully!",
       data: sanitizeUser(savedUser),
+      confirmation,
     });
   } catch (err) {
     res.status(400).send("ERROR : " + err.message);

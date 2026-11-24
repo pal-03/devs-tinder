@@ -13,6 +13,7 @@ const profileRouter = express.Router(); // Creating a new router instance for pr
 //  This helps in keeping related routes together and makes the codebase more maintainable.
 const { userAuth } = require("../middlewares/auth");
 const { validateEditProfileData } = require("../utils/validation");
+const { setEmailConsent } = require("../utils/emailConsent");
 
 // Profile API - GET /profile - get the profile of the logged-in user
 
@@ -48,6 +49,7 @@ profileRouter.patch("/profile/edit", userAuth, async (req, res) => {
     // update only the fields that are included in the request body, while keeping the
     //  rest of the user profile unchanged.
     Object.keys(req.body).forEach((key) => (loggedInUser[key] = req.body[key]));
+    if (loggedInUser.isModified("emailId")) setEmailConsent(loggedInUser, false, "email-change");
 
     // After updating the fields in the loggedInUser object, we call await loggedInUser.save()
     //  to save the changes to the database. This ensures that the updated profile information

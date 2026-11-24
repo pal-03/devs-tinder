@@ -16,6 +16,8 @@ const authRouter = require("./routes/auth");
 const profileRouter = require("./routes/profile");
 const requestRouter = require("./routes/request");
 const userRouter = require("./routes/user");
+const emailRouter = require("./routes/email");
+const { startEmailFeedback, stopEmailFeedback } = require("./utils/emailFeedback");
 
 const createApp = () => {
   const app = express();
@@ -302,6 +304,7 @@ const createApp = () => {
   //  allowing us to handle requests related to sending connection requests through the
   // routes defined in requestRouter.
   app.use("/", userRouter);
+  app.use("/", emailRouter);
 
   // Get user by email
   // This API endpoint allows clients to retrieve a user from the database based on their email address. When a GET request is made to the /user endpoint with an emailId in the request body, the server will attempt to find a user document in the MongoDB collection that matches the provided emailId. If a user is found, it will return the user data in the response. If no user is found with the given emailId, it will return a 404 status code with a "User not found" message. If there is an error during the database query, it will return a 400 status code with an error message.
@@ -484,6 +487,7 @@ const startServer = async ({ port: customPort } = {}) => {
   // Establish a connection to the database before starting the server
   await connectDB();
   startCronJob();
+  startEmailFeedback();
 
   const listenPort = customPort ?? port;
 
@@ -511,6 +515,7 @@ const stopServer = async () => {
   });
 
   stopCronJob();
+  await stopEmailFeedback();
   serverInstance = null;
 };
 

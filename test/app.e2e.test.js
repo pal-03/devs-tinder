@@ -29,6 +29,13 @@ const createUserPayload = ({
   skills,
 });
 
+const confirmTestConsent = async (id) => {
+  const user = await User.findById(id);
+  require("../src/utils/emailConsent").setEmailConsent(user, true, "test");
+  user.emailConsent.confirmedAt = new Date();
+  await user.save();
+};
+
 before(async () => {
   mongoServer = await MongoMemoryServer.create({
     instance: { dbName: "devstinder-test" },
@@ -52,6 +59,8 @@ before(async () => {
 afterEach(async () => {
   await ConnectionRequest.deleteMany({});
   await User.deleteMany({});
+  await require("../src/models/emailSuppression").deleteMany({});
+  await require("../src/models/emailFeedbackEvent").deleteMany({});
 });
 
 after(async () => {
@@ -259,6 +268,7 @@ test("request notifications target recipients, skip ignores, and tolerate email 
       const response = await request(server).post("/signup").send(createUserPayload({ firstName: name, lastName: "Test", emailId: name.toLowerCase() + "@example.com" })).expect(201);
       recipientIds.push(response.body.data._id);
     }
+    for (const id of recipientIds) await confirmTestConsent(id);
 
     await sender.post(`/request/send/ignored/${recipientIds[0]}`).expect(200);
     assert.equal(calls.length, 0);
@@ -291,6 +301,7 @@ test("daily reminders include the last millisecond of yesterday and deduplicate 
       const response = await request(server).post("/signup").send(createUserPayload({ firstName: name, lastName: "Test", emailId: name.toLowerCase() + "@example.com" })).expect(201);
       ids.push(response.body.data._id);
     }
+    for (const id of ids) await confirmTestConsent(id);
     const now = new Date(2026, 10, 25, 12);
     const rows = [
       { fromUserId: ids[0], toUserId: ids[2], status: "interested", createdAt: new Date(2026, 10, 24, 0) },

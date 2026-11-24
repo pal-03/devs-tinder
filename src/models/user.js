@@ -96,6 +96,18 @@ const userSchema = new mongoose.Schema(
     skills: {
       type: [String],
     },
+    emailConsent: {
+      enabled: { type: Boolean, default: false },
+      emailId: String,
+      version: String,
+      source: String,
+      revision: String,
+      requestedAt: Date,
+      confirmedAt: Date,
+      withdrawnAt: Date,
+      updatedAt: Date,
+      lastConfirmationAt: Date,
+    },
   },
   // The second argument to the mongoose.Schema constructor is an options object
   //  that allows you to specify additional settings for the schema.

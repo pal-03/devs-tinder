@@ -5,7 +5,7 @@ const { subDays, startOfDay, endOfDay } = require("date-fns");
 // startOfDay and endOfDay are used to determine the start and end
 // of a given day, respectively.
 const { clientOrigin, cronExpression, disableCron } = require("../config/env");
-const sendEmail = require("./sendEmail");
+const emailNotifications = require("./emailNotifications");
 const ConnectionRequestModel = require("../models/connectionRequest");
 
 let scheduledTask;
@@ -42,7 +42,7 @@ const sendPendingConnectionRequestEmails = async ({ now = new Date(), requestIds
     }
     query._id = { $in: requestIds };
   }
-  const pendingRequests = await ConnectionRequestModel.find(query).populate("fromUserId toUserId", "firstName lastName emailId"); // The populate method is used to fetch the
+  const pendingRequests = await ConnectionRequestModel.find(query).populate("fromUserId toUserId", "firstName lastName emailId emailConsent"); // The populate method is used to fetch the
   //  user names and email addresses for the fromUserId and toUserId fields
   // in the connection requests. This allows access to the email addresses
   // of the users involved in the connection requests.
@@ -52,6 +52,7 @@ const sendPendingConnectionRequestEmails = async ({ now = new Date(), requestIds
   const listOfEmails = [
     ...new Set(
       pendingRequests
+        .filter((req) => req.toUserId?.emailConsent?.enabled && req.toUserId.emailConsent.confirmedAt && req.toUserId.emailConsent.emailId === req.toUserId.emailId)
         .map((req) => req.toUserId?.emailId)
         .filter((emailId) => Boolean(emailId))
     ),
@@ -66,10 +67,11 @@ const sendPendingConnectionRequestEmails = async ({ now = new Date(), requestIds
     // The code iterates through the list of unique email addresses and
     //  sends an email
     try {
-      const res = await sendEmail.run(
+      const recipient = pendingRequests.find(req => req.toUserId?.emailId === email).toUserId;
+      const res = await emailNotifications.run(
+        recipient._id,
         "New Friend Requests pending for " + email,
-        "You have pending connection requests. Review them at " + new URL("/requests", clientOrigin).href,
-        { toAddress: email }
+        "You have pending connection requests. Review them at " + new URL("/requests", clientOrigin).href
       );
 
       results.push({

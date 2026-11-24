@@ -5,6 +5,7 @@ const {
   sesToAddress,
 } = require("../config/env");
 const { sesClient } = require("./sesClient.js");
+const EmailSuppression = require("../models/emailSuppression");
 
 const escapeHtml = (value) =>
   String(value)
@@ -68,8 +69,13 @@ const run = async (subject, body,toEmailId, options = {}) => {
       ? { ...options, toAddress: toEmailId }
       : toEmailId || options;
 
+  const recipient = (emailOptions.toAddress || sesToAddress).trim().toLowerCase();
+  if (await EmailSuppression.exists({ emailId: recipient })) {
+    return { skipped: true, reason: "Recipient is suppressed after a bounce or complaint" };
+  }
+
   const sendEmailCommand = createSendEmailCommand(
-    emailOptions.toAddress || sesToAddress,
+    recipient,
     emailOptions.fromAddress || sesFromAddress,
     subject,
     body

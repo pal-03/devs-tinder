@@ -14,4 +14,6 @@ module.exports = {
   cronExpression: process.env.CRON_EXPRESSION || "0 8 * * *",
   sesFromAddress: process.env.SES_FROM_ADDRESS || "swayam@devs-tinder.in",
   sesToAddress: process.env.SES_TO_ADDRESS || "swayampal82@gmail.com",
+  sesFeedbackQueueUrl: process.env.SES_FEEDBACK_QUEUE_URL || "",
+  sesFeedbackTopicArn: process.env.SES_FEEDBACK_TOPIC_ARN || "",
 };
