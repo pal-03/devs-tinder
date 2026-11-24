@@ -22,9 +22,18 @@ Use Node.js 24.14.1, then run `npm install`.
 - `DISABLE_EMAILS=true` suppresses outbound SES calls. `DISABLE_CRON=true` disables the daily reminder job.
 - `CRON_EXPRESSION` defaults to `0 8 * * *`, interpreted in the server's timezone. On the current EC2 host that is UTC.
 - Reminder selection includes yesterday's final millisecond and deduplicates recipients. It is not a durable queue or a delivery guarantee.
+- Reminder links use the configured frontend origin. Runs do not overlap, and scheduler failures remain visible to monitoring.
 
 ## Live Verification
 
 Run the frontend repository's `npm run test:e2e -- --live` with `E2E_SSH_KEY` set. Disable email and cron while running it, then restore their previous settings.
 
 `src/scripts/liveTestFixtures.js` is an SSH-only test utility, not an HTTP endpoint. It requires an exact random run ID, accepts only reserved example.com test addresses, and refuses to operate on more than 16 test accounts. It isolates those accounts' feeds and removes their temporary records after verification. Never run the isolated API test suite against production data.
+
+### Real Email Delivery
+
+From EC2, `npm run test:email:live -- --send-to-configured-inbox` sends two real messages to `SES_TO_ADDRESS`: a notification through the live request API, followed by a real scheduled reminder tick. It uses a temporary sender and scopes the reminder to its single request, then removes temporary database records. The normal PM2 cron schedule is unchanged. The API recipient must be permitted by the SES account's current sending mode.
+
+The report is saved under ignored `artifacts/email-e2e/`. An SES message ID proves acceptance, not inbox arrival; separately verify the messages in the recipient mailbox using their RFC Message-ID and Inbox/Spam labels.
+
+If SES reports `ProductionAccessEnabled=false`, it is still in sandbox mode: recipients must be verified, and the daily quota is limited. Successful delivery to a verified test inbox does not prove delivery to arbitrary app users. Request AWS production access before relying on notifications to unverified recipients.

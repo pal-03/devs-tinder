@@ -4,7 +4,7 @@ const { subDays, startOfDay, endOfDay } = require("date-fns");
 //  one day from the current date.
 // startOfDay and endOfDay are used to determine the start and end
 // of a given day, respectively.
-const { cronExpression, disableCron } = require("../config/env");
+const { clientOrigin, cronExpression, disableCron } = require("../config/env");
 const sendEmail = require("./sendEmail");
 const ConnectionRequestModel = require("../models/connectionRequest");
 
@@ -22,21 +22,28 @@ const getYesterdayWindow = (now = new Date()) => {
   };
 };
 
-const sendPendingConnectionRequestEmails = async ({ now = new Date() } = {}) => {
+const sendPendingConnectionRequestEmails = async ({ now = new Date(), requestIds } = {}) => {
   // Send emails to all people who got requests the previous day
   const { yesterdayStart, yesterdayEnd } = getYesterdayWindow(now);
 
   // The code queries the ConnectionRequestModel to find all connection requests
   //  that have a status of "interested" and were created within the time range
   //  of yesterday (from the start of the day to the end of the day).
-  const pendingRequests = await ConnectionRequestModel.find({
+  const query = {
     status: "interested",
     createdAt: {
       $gte: yesterdayStart,
       $lte: yesterdayEnd,
     },
-  }).populate("fromUserId toUserId"); // The populate method is used to fetch the
-  //  full user documents for the fromUserId and toUserId fields
+  };
+  if (requestIds !== undefined) {
+    if (!Array.isArray(requestIds)) {
+      throw new Error("requestIds must be an array");
+    }
+    query._id = { $in: requestIds };
+  }
+  const pendingRequests = await ConnectionRequestModel.find(query).populate("fromUserId toUserId", "firstName lastName emailId"); // The populate method is used to fetch the
+  //  user names and email addresses for the fromUserId and toUserId fields
   // in the connection requests. This allows access to the email addresses
   // of the users involved in the connection requests.
 
@@ -61,7 +68,7 @@ const sendPendingConnectionRequestEmails = async ({ now = new Date() } = {}) => 
     try {
       const res = await sendEmail.run(
         "New Friend Requests pending for " + email,
-        "There are many friend requests pending. Please login to DevTinder.in and accept or reject the requests.",
+        "You have pending connection requests. Review them at " + new URL("/requests", clientOrigin).href,
         { toAddress: email }
       );
 
@@ -97,7 +104,7 @@ const sendPendingConnectionRequestEmails = async ({ now = new Date() } = {}) => 
   };
 };
 
-const startCronJob = () => {
+const startCronJob = ({ requestIds } = {}) => {
   if (disableCron) {
     console.log("Cron job disabled.");
     return null;
@@ -122,12 +129,14 @@ const startCronJob = () => {
   // */10 * * * * *
   scheduledTask = cron.schedule(cronExpression, async () => {
     try {
-      const summary = await sendPendingConnectionRequestEmails();
+      const summary = await sendPendingConnectionRequestEmails({ requestIds });
       console.log("Pending request reminder job completed:", summary);
+      return summary;
     } catch (err) {
       console.error("Pending request reminder job failed:", err);
+      throw err;
     }
-  });
+  }, { name: "pending-connection-request-reminders", noOverlap: true });
 
   console.log("Cron job scheduled:", cronExpression);
   return scheduledTask;

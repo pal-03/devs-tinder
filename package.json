@@ -9,7 +9,8 @@
     "dev": "nodemon -L",
     "dev:legacy": "nodemon -L",
     "seed:users": "node src/scripts/seedUsers.js",
-    "test": "node --test"
+    "test": "node --test",
+    "test:email:live": "node src/scripts/verifyEmailDelivery.js"
   },
   "keywords": [
     "js",

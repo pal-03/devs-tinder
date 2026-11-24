@@ -299,12 +299,17 @@ test("daily reminders include the last millisecond of yesterday and deduplicate 
       { fromUserId: ids[0], toUserId: ids[1], status: "rejected", createdAt: new Date(2026, 10, 24, 12) },
     ];
     const mongoose = require("mongoose");
-    await ConnectionRequest.collection.insertMany(rows.map(row => ({ ...row, fromUserId: new mongoose.Types.ObjectId(row.fromUserId), toUserId: new mongoose.Types.ObjectId(row.toUserId) })));
+    const inserted = await ConnectionRequest.collection.insertMany(rows.map(row => ({ ...row, fromUserId: new mongoose.Types.ObjectId(row.fromUserId), toUserId: new mongoose.Types.ObjectId(row.toUserId) })));
     const summary = await sendPendingConnectionRequestEmails({ now });
     assert.equal(summary.pendingRequestsCount, 2);
     assert.equal(summary.recipientCount, 1);
     assert.equal(calls.length, 1);
     assert.equal(calls[0][2].toAddress, "carol@example.com");
+    assert.ok(calls[0][1].includes("http://localhost:5173/requests"));
+    const scoped = await sendPendingConnectionRequestEmails({ now, requestIds: [inserted.insertedIds[0]] });
+    assert.equal(scoped.pendingRequestsCount, 1);
+    const empty = await sendPendingConnectionRequestEmails({ now, requestIds: [] });
+    assert.equal(empty.recipientCount, 0);
   } finally {
     sendEmail.run = originalRun;
   }
