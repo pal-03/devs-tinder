@@ -47,6 +47,8 @@ before(async () => {
   process.env.PORT = "0";
   process.env.DISABLE_EMAILS = "true";
   process.env.DISABLE_CRON = "true";
+  process.env.SES_FEEDBACK_QUEUE_URL = "";
+  process.env.SES_FEEDBACK_TOPIC_ARN = "";
 
   ({ startServer, stopServer } = require("../src/app"));
   ({ disconnectDB } = require("../src/config/database"));

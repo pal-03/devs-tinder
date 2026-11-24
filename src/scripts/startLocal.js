@@ -23,6 +23,8 @@ const main = async () => {
   process.env.MONGODB_URI = mongoServer.getUri();
   process.env.DISABLE_EMAILS ??= "true";
   process.env.DISABLE_CRON ??= "true";
+  process.env.SES_FEEDBACK_QUEUE_URL = "";
+  process.env.SES_FEEDBACK_TOPIC_ARN = "";
 
   const { startServer, stopServer: stopAppServer } = require("../app");
   stopServer = stopAppServer;
