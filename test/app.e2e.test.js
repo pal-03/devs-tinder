@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { after, afterEach, before, test } = require("node:test");
+const { after, afterEach, before, mock, test } = require("node:test");
 
 const request = require("supertest");
 const { MongoMemoryServer } = require("mongodb-memory-server");
@@ -39,6 +39,7 @@ before(async () => {
   process.env.CLIENT_ORIGIN = "http://localhost:5173";
   process.env.PORT = "0";
   process.env.DISABLE_EMAILS = "true";
+  process.env.DISABLE_CRON = "true";
 
   ({ startServer, stopServer } = require("../src/app"));
   ({ disconnectDB } = require("../src/config/database"));
@@ -63,6 +64,18 @@ test("GET /health returns an ok status", async () => {
   const response = await request(server).get("/health").expect(200);
 
   assert.deepEqual(response.body, { status: "ok" });
+});
+
+test("GET /health reports an unavailable database instead of a false success", async () => {
+  const command = mock.method(User.db.db, "command", async () => {
+    throw new Error("Simulated database outage");
+  });
+  try {
+    const response = await request(server).get("/health").expect(503);
+    assert.deepEqual(response.body, { status: "error", database: "unavailable" });
+  } finally {
+    command.mock.restore();
+  }
 });
 
 test("auth and connection flow works end to end", async () => {
@@ -178,6 +191,7 @@ test("auth and connection flow works end to end", async () => {
 });
 
 test("user lookup, update and delete endpoints work", async () => {
+  const userAgent = request.agent(server);
   const userPayload = createUserPayload({
     firstName: "Diana",
     lastName: "Brown",
@@ -187,34 +201,111 @@ test("user lookup, update and delete endpoints work", async () => {
     skills: ["java"],
   });
 
-  const signupResponse = await request(server)
+  const signupResponse = await userAgent
     .post("/signup")
     .send(userPayload)
     .expect(201);
 
   const userId = signupResponse.body.data._id;
 
-  const lookupResponse = await request(server)
+  await request(server).get(`/user?emailId=${userPayload.emailId}`).expect(401);
+  await request(server).patch(`/user/${userId}`).send({ about: "blocked" }).expect(401);
+  await request(server).delete("/user").send({ userId }).expect(401);
+
+  const otherId = "000000000000000000000001";
+  await userAgent.get("/user?emailId=other@example.com").expect(403);
+  await userAgent.patch(`/user/${otherId}`).send({ about: "blocked" }).expect(403);
+  await userAgent.delete("/user").send({ userId: otherId }).expect(403);
+
+  const lookupResponse = await userAgent
     .get(`/user?emailId=${encodeURIComponent(userPayload.emailId)}`)
     .expect(200);
 
   assert.equal(lookupResponse.body.emailId, userPayload.emailId);
   assert.equal(lookupResponse.body.password, undefined);
 
-  await request(server)
+  await userAgent
     .patch(`/user/${userId}`)
     .send({ about: "Updated bio", skills: ["java", "spring"] })
     .expect(200);
 
-  const updatedUser = await request(server)
+  const updatedUser = await userAgent
     .get(`/user?emailId=${encodeURIComponent(userPayload.emailId)}`)
     .expect(200);
 
   assert.equal(updatedUser.body.about, "Updated bio");
   assert.deepEqual(updatedUser.body.skills, ["java", "spring"]);
 
-  await request(server).delete("/user").send({ userId }).expect(200);
-  await request(server)
+  await userAgent.delete("/user").send({ userId }).expect(200);
+  await userAgent
     .get(`/user?emailId=${encodeURIComponent(userPayload.emailId)}`)
-    .expect(404);
+    .expect(401);
+});
+
+test("request notifications target recipients, skip ignores, and tolerate email failure", async () => {
+  const sendEmail = require("../src/utils/sendEmail");
+  const originalRun = sendEmail.run;
+  const calls = [];
+  sendEmail.run = async (...args) => {
+    calls.push(args);
+    return { MessageId: "stub-email-id" };
+  };
+
+  try {
+    const sender = request.agent(server);
+    await sender.post("/signup").send(createUserPayload({ firstName: "Sender", lastName: "Test", emailId: "sender@example.com" })).expect(201);
+    const recipientIds = [];
+    for (const name of ["First", "Second", "Third"]) {
+      const response = await request(server).post("/signup").send(createUserPayload({ firstName: name, lastName: "Test", emailId: name.toLowerCase() + "@example.com" })).expect(201);
+      recipientIds.push(response.body.data._id);
+    }
+
+    await sender.post(`/request/send/ignored/${recipientIds[0]}`).expect(200);
+    assert.equal(calls.length, 0);
+    const interested = await sender.post(`/request/send/interested/${recipientIds[1]}`).expect(200);
+    assert.equal(interested.body.email.sent, true);
+    assert.equal(calls[0][2].toAddress, "second@example.com");
+
+    sendEmail.run = async () => { throw new Error("Simulated SES failure"); };
+    const failedEmail = await sender.post(`/request/send/interested/${recipientIds[2]}`).expect(200);
+    assert.equal(failedEmail.body.email.sent, false);
+    assert.equal(failedEmail.body.data.status, "interested");
+  } finally {
+    sendEmail.run = originalRun;
+  }
+});
+
+test("daily reminders include the last millisecond of yesterday and deduplicate recipients", async () => {
+  const sendEmail = require("../src/utils/sendEmail");
+  const { sendPendingConnectionRequestEmails } = require("../src/utils/cronJob");
+  const originalRun = sendEmail.run;
+  const calls = [];
+  sendEmail.run = async (...args) => {
+    calls.push(args);
+    return { MessageId: "stub-digest-id" };
+  };
+
+  try {
+    const ids = [];
+    for (const name of ["Alice", "Bobby", "Carol"]) {
+      const response = await request(server).post("/signup").send(createUserPayload({ firstName: name, lastName: "Test", emailId: name.toLowerCase() + "@example.com" })).expect(201);
+      ids.push(response.body.data._id);
+    }
+    const now = new Date(2026, 10, 25, 12);
+    const rows = [
+      { fromUserId: ids[0], toUserId: ids[2], status: "interested", createdAt: new Date(2026, 10, 24, 0) },
+      { fromUserId: ids[1], toUserId: ids[2], status: "interested", createdAt: new Date(2026, 10, 24, 23, 59, 59, 999) },
+      { fromUserId: ids[2], toUserId: ids[0], status: "interested", createdAt: new Date(2026, 10, 25, 0) },
+      { fromUserId: ids[0], toUserId: ids[1], status: "rejected", createdAt: new Date(2026, 10, 24, 12) },
+    ];
+    const mongoose = require("mongoose");
+    await ConnectionRequest.collection.insertMany(rows.map(row => ({ ...row, fromUserId: new mongoose.Types.ObjectId(row.fromUserId), toUserId: new mongoose.Types.ObjectId(row.toUserId) })));
+    const summary = await sendPendingConnectionRequestEmails({ now });
+    assert.equal(summary.pendingRequestsCount, 2);
+    assert.equal(summary.recipientCount, 1);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0][2].toAddress, "carol@example.com");
+  } finally {
+    sendEmail.run = originalRun;
+  }
 });

@@ -21,6 +21,8 @@ const main = async () => {
   });
 
   process.env.MONGODB_URI = mongoServer.getUri();
+  process.env.DISABLE_EMAILS ??= "true";
+  process.env.DISABLE_CRON ??= "true";
 
   const { startServer, stopServer: stopAppServer } = require("../app");
   stopServer = stopAppServer;
@@ -30,6 +32,7 @@ const main = async () => {
 
   console.log(`Using in-memory MongoDB at ${process.env.MONGODB_URI}`);
   console.log(`Server is listening on port ${address.port}`);
+  console.log("Local database is temporary; its data is removed when this process stops.");
 };
 
 process.on("SIGINT", async () => {

@@ -96,21 +96,24 @@ requestRouter.post(
       //  of the connection request (e.g., "interested" or "ignored") in relation
       //  to the recipient user (toUser.firstName). The result is returned as a compact
       //  email status so the request can still succeed if notification delivery fails.
-      let emailStatus = { sent: false };
-      try {
-        const emailRes = await sendEmail.run(
-          "A new friend request from " + req.user.firstName,
-          req.user.firstName + " is " + status + " in " + toUser.firstName
-        );
+      let emailStatus = { sent: false, skipped: true };
+      if (status === "interested") {
+        try {
+          const emailRes = await sendEmail.run(
+            "A new friend request from " + req.user.firstName,
+            req.user.firstName + " is " + status + " in " + toUser.firstName,
+            { toAddress: toUser.emailId }
+          );
 
-        emailStatus = emailRes.skipped
-          ? { sent: false, skipped: true, reason: emailRes.reason }
-          : { sent: true, messageId: emailRes.MessageId };
-      } catch (emailErr) {
-        emailStatus = {
-          sent: false,
-          error: emailErr.name || "EmailSendFailed",
-        };
+          emailStatus = emailRes.skipped
+            ? { sent: false, skipped: true, reason: emailRes.reason }
+            : { sent: true, messageId: emailRes.MessageId };
+        } catch (emailErr) {
+          emailStatus = {
+            sent: false,
+            error: emailErr.name || "EmailSendFailed",
+          };
+        }
       }
 
       res.json({

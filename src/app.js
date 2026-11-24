@@ -7,8 +7,10 @@ const User = require("./models/user");
 // const { validateSignUpData } = require("./utils/validation");
 // const bcrypt = require("bcrypt");
 const cookieParser = require("cookie-parser");
+const { userAuth } = require("./middlewares/auth");
 // const { userAuth } = require("./middlewares/auth"); // This line of code imports the userAuth middleware function from the src/middlewares/auth.js file. The userAuth middleware is used to protect certain routes in the application by verifying the user's authentication status. When a route is protected with the userAuth middleware, it checks for a valid token in the request cookies, verifies the token, and retrieves the user's information from the database. If the token is valid and the user exists, it allows the request to proceed to the next middleware or route handler. If the token is invalid or if there is an error during verification, it sends an appropriate error response to the client. By using this middleware, we can ensure that only authenticated users can access certain routes and perform actions that require authentication in our application.
 const cors = require("cors");
+const { startCronJob, stopCronJob } = require("./utils/cronJob");
 
 const authRouter = require("./routes/auth");
 const profileRouter = require("./routes/profile");
@@ -269,8 +271,14 @@ const createApp = () => {
   // });
 
   // Health API - GET /health - quick check that the Express app is running
-  app.get("/health", (req, res) => {
-    res.json({ status: "ok" });
+  app.get("/health", async (req, res) => {
+    // A listening HTTP server is not ready if its database is unavailable.
+    try {
+      await User.db.db.command({ ping: 1 }, { timeoutMS: 2000 });
+      res.json({ status: "ok" });
+    } catch {
+      res.status(503).json({ status: "error", database: "unavailable" });
+    }
   });
 
   app.use("/", authRouter); // This line of code mounts the authRouter on the root path ("/")
@@ -297,13 +305,17 @@ const createApp = () => {
 
   // Get user by email
   // This API endpoint allows clients to retrieve a user from the database based on their email address. When a GET request is made to the /user endpoint with an emailId in the request body, the server will attempt to find a user document in the MongoDB collection that matches the provided emailId. If a user is found, it will return the user data in the response. If no user is found with the given emailId, it will return a 404 status code with a "User not found" message. If there is an error during the database query, it will return a 400 status code with an error message.
-  app.get("/user", async (req, res) => {
+  app.get("/user", userAuth, async (req, res) => {
     // Extract the emailId from the query parameters of the request.
     // This allows clients to specify the emailId they want to search for when making a GET request to the /user endpoint. The emailId is expected to be passed as a query parameter in the URL (e.g., /user?emailId=john.doe@example.com). By extracting the emailId from the query parameters, we can use it to query the database and retrieve the corresponding user document that matches the provided emailId. This enables clients to easily search for users based on their email addresses and retrieve their information from the database.
     const userEmail = req.query.emailId;
 
     if (!userEmail) {
       return res.status(400).send("emailId query param is required");
+    }
+
+    if (userEmail !== req.user.emailId) {
+      return res.status(403).send("You can only look up your own account");
     }
 
     try {
@@ -372,8 +384,11 @@ const createApp = () => {
 
   // Detele a user from the database
   // This API endpoint allows clients to delete a user from the database based on their userId. When a DELETE request is made to the /user endpoint with a userId in the request body, the server will attempt to find and delete the user document in the MongoDB collection that matches the provided userId. If the user is successfully deleted, it will return a success message in the response. If there is an error during the deletion process (e.g., invalid userId, database connection issue), it will return a 400 status code with an error message.
-  app.delete("/user", async (req, res) => {
+  app.delete("/user", userAuth, async (req, res) => {
     const userId = req.body.userId;
+    if (userId !== req.user._id.toString()) {
+      return res.status(403).send("You can only delete your own account");
+    }
     try {
       // The findByIdAndDelete method is used to find a user document by its unique identifier (userId) and delete it from the database. It takes the userId as an argument and attempts to find the corresponding user document in the collection. If a user with the specified userId is found, it will be deleted from the database, and the method will return the deleted user document. If no user is found with the given userId, it will return null. In this case, we are using the findByIdAndDelete method to delete a user based on their userId, which is provided in the request body.
       // SEND IT line userId or {_id: userId} both are working, but the first one is more concise and straightforward when using findByIdAndDelete, as it directly takes the userId as an argument without needing to wrap it in an object. The second approach, where you pass an object with _id: userId, is more commonly used with methods like findOneAndDelete or findOneAndUpdate, where you need to specify a query object to find the document based on certain criteria. In the case of findByIdAndDelete, since it is specifically designed to find a document by its unique identifier, passing the userId directly is more appropriate and cleaner.
@@ -391,13 +406,16 @@ const createApp = () => {
 
   // Update data of the user
   // This API endpoint allows clients to update a user's information in the database based on their userId. When a PATCH request is made to the /user endpoint with a userId and updated data in the request body, the server will attempt to find the user document in the MongoDB collection that matches the provided userId and update it with the new data. If the user is successfully updated, it will return a success message in the response. If there is an error during the update process (e.g., invalid userId, database connection issue), it will return a 400 status code with an error message. The findByIdAndUpdate method is used to find a user document by its unique identifier (userId) and update it with the new data provided in the request body. It takes the userId, the updated data, and an options object as arguments. The returnDocument: "after" option ensures that the updated user document is returned after the update operation is performed. This allows us to see the changes made to the user document in the response.
-  app.patch("/user/:userId", async (req, res) => {
+  app.patch("/user/:userId", userAuth, async (req, res) => {
     const userId = req.params?.userId; // Extract the userId from the URL parameters of
     // the request.
     // This allows clients to specify the userId of the user they want to update when
     //  making a PATCH request to the /user/:userId endpoint.
     // The userId is expected to be passed as a URL parameter (e.g., /user/60c72b2f9b1d8e5a5c8f9b1), which will be extracted and used to identify the user document in the database that needs to be updated with the new data provided in the request body.
     const data = req.body;
+    if (userId !== req.user._id.toString()) {
+      return res.status(403).send("You can only update your own account");
+    }
     try {
       // The ALLOWED_UPDATES array defines the fields that are allowed to be updated
       // in the user document.
@@ -465,6 +483,7 @@ const startServer = async ({ port: customPort } = {}) => {
 
   // Establish a connection to the database before starting the server
   await connectDB();
+  startCronJob();
 
   const listenPort = customPort ?? port;
 
@@ -491,6 +510,7 @@ const stopServer = async () => {
     });
   });
 
+  stopCronJob();
   serverInstance = null;
 };
 

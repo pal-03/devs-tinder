@@ -10,6 +10,8 @@ module.exports = {
   awsSecretAccessKey:
     process.env.AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_KEY,
   disableEmails: process.env.DISABLE_EMAILS === "true",
+  disableCron: process.env.DISABLE_CRON === "true",
+  cronExpression: process.env.CRON_EXPRESSION || "0 8 * * *",
   sesFromAddress: process.env.SES_FROM_ADDRESS || "swayam@devs-tinder.in",
   sesToAddress: process.env.SES_TO_ADDRESS || "swayampal82@gmail.com",
 };

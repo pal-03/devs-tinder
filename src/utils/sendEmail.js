@@ -58,14 +58,19 @@ const createSendEmailCommand = (toAddress, fromAddress, subject, body) => {
 
 // actual code to send email using the sesClient and the createSendEmailCommand function.
 
-const run = async (subject, body, options = {}) => {
+const run = async (subject, body,toEmailId, options = {}) => {
   if (disableEmails) {
     return { skipped: true, reason: "Email sending is disabled" };
   }
 
+  const emailOptions =
+    typeof toEmailId === "string"
+      ? { ...options, toAddress: toEmailId }
+      : toEmailId || options;
+
   const sendEmailCommand = createSendEmailCommand(
-    options.toAddress || sesToAddress,
-    options.fromAddress || sesFromAddress,
+    emailOptions.toAddress || sesToAddress,
+    emailOptions.fromAddress || sesFromAddress,
     subject,
     body
   );

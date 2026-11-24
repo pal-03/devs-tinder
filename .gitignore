@@ -1,3 +1,8 @@
 node_modules
 nodemon*.log
+*.log
 .env
+.env.*
+!.env.example
+*.pem
+artifacts/
