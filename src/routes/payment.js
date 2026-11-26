@@ -88,6 +88,7 @@ paymentRouter.post("/payment/verify", userAuth, async (req, res) => {
     if (!payment) throw fail("Payment order not found", 404);
     // The order ID comes from our database, not an untrusted Checkout amount or plan.
     if (!validSignature(`${payment.orderId}|${paymentId}`, signature, razorpayKeySecret)) throw fail("Payment signature is invalid");
+    console.info("Checkout signature verified");
     const result = await reconcilePayment(payment, { paymentId });
     res.status(result.payment.fulfilledAt ? 200 : 202).json(result);
   } catch (error) { handleError(res, error); }
@@ -112,6 +113,7 @@ paymentRouter.post("/payment/webhook", async (req, res) => {
     // Get the webhook signature from the request header
     // Validate the webhook signature using the original bytes, not JSON.stringify(req.body).
     if (!Buffer.isBuffer(req.body) || !validSignature(req.body, webhookSignature, razorpayWebhookSecret)) throw fail("Webhook signature is invalid");
+    console.info("Webhook signature verified");
     const eventId = req.get("x-razorpay-event-id");
     if (!eventId || eventId.length > 200) throw fail("Webhook event ID is required");
     if (await PaymentWebhookEvent.exists({ eventId })) return res.json({ duplicate: true });
