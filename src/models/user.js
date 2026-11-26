@@ -80,6 +80,20 @@ const userSchema = new mongoose.Schema(
         message: `{VALUE} is not a valid gender type`,
       },
     },
+    isPremium: {
+        type: Boolean,
+        default: false,
+      },
+    membershipType: {
+        type: String,
+    },
+    membershipMode: { type: String, enum: ["test", "live"] },
+    membershipExpiresAt: Date,
+    memberships: {
+      type: Map,
+      of: new mongoose.Schema({ active: Boolean, type: String, expiresAt: Date }, { _id: false }),
+      default: undefined,
+    },
     photoUrl: {
       type: String,
       default: "https://geographyandyou.com/images/user-profile.png",
@@ -122,6 +136,8 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+userSchema.set("toJSON", { transform: require("../utils/membership").membershipTransform });
+userSchema.set("toObject", { transform: require("../utils/membership").membershipTransform });
 
 // Moongose schema methods
 // The getJWT method is an instance method defined on the userSchema that generates

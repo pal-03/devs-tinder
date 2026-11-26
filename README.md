@@ -1,5 +1,19 @@
 # DevTinder Backend
 
+## Razorpay Payments
+
+- Keep `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` only in the backend `.env`. The key ID is public and is returned for Checkout; the two secrets must never reach the frontend, logs or Git. Rotate any credential that was previously published or committed.
+- Default deployment is `RAZORPAY_MODE=test` and `RAZORPAY_LIVE_ENABLED=false`. Live keys require both `RAZORPAY_MODE=live` and explicit live enablement. Test and live membership snapshots are separate; a test payment cannot grant paid live access.
+- Silver costs INR 300 for three calendar months; Gold costs INR 700 for six. These are one-time purchases, not recurring subscriptions. The server computes price/duration; authenticated users cannot edit these in the request or set their own premium flags. Active members cannot start another new purchase. Each captured order grants its own fixed term; purchases do not stack or auto-renew.
+- `POST /payment/create` requires an `Idempotency-Key` (16-100 alphanumeric/underscore/hyphen characters). Retries with the same key reuse the stored order. Receipts are unique. Network errors after order creation should be retried with the same key to recover the existing order.
+- Checkout calls authenticated `POST /payment/verify`. The server checks the callback HMAC using its stored order ID, then fetches the gateway payment to verify amount, currency, order and capture status. Authorization alone never grants access.
+- Configure the **Test Mode** webhook as `https://devs-tinder.in/api/payment/webhook` (note the hyphen). Enable `payment.captured`, `payment.failed`, `payment.authorized`, `order.paid`, and `refund.processed`. Retain the same configured secret in the backend environment. Live Mode requires a separately reviewed webhook configuration.
+- Webhook HMAC verification uses the original raw bytes before JSON middleware. Event IDs are unique, and updates to payment, membership and webhook audit commit in a MongoDB transaction. Atlas supports transactions; isolated payment tests use `MongoMemoryReplSet`, not standalone MongoDB.
+- `GET /payment/status/:orderId` is owner-only and reconciles with Razorpay if the browser callback or webhook was delayed. Full refunds revoke that order's access; partial refunds preserve access under the current policy. Refunded orders cannot be reactivated by stale capture notifications. Expired memberships are inactive in API responses.
+- No card/CVV/OTP values are handled by our backend. Use Razorpay's hosted Checkout. Do not enable real-money payments until business activation, real premium benefits, refund/support policies and a separately approved live transaction have been reviewed. Chat and connection-limit entitlements are not implemented by this payment change; the UI must not promise them.
+- `npm test` includes mocked payment/security/transaction regressions without external gateway calls. The frontend `npm run test:payments` exercises both plans, cancellation, failure, missed-callback recovery, gateway/script errors, reload persistence and mobile layouts against an isolated database and a mocked gateway.
+- `src/scripts/paymentTestFixtures.js create|status|cleanup <32-hex-run-id>` is SSH-only and refuses non-test gateway settings. Its optional `refund` action also requires `--allow-test-payment-api` and refunds only the selected disposable account's captured test payment. Never expose it as an HTTP route. Test cleanup removes only that fixture's users, relationships, test payments and webhook events; Razorpay retains its sandbox transaction history.
+
 Use Node.js 24.14.1, then run `npm install`.
 
 ## Development

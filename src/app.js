@@ -17,6 +17,7 @@ const profileRouter = require("./routes/profile");
 const requestRouter = require("./routes/request");
 const userRouter = require("./routes/user");
 const emailRouter = require("./routes/email");
+const paymentRouter = require("./routes/payment");
 const { startEmailFeedback, stopEmailFeedback } = require("./utils/emailFeedback");
 
 const createApp = () => {
@@ -24,6 +25,7 @@ const createApp = () => {
 
   // we use middleware inside app.use() method to parse incoming JSON payloads in the request body. This allows us to easily access the data sent by the client in the request body as a JavaScript object, which we can then use in our route handlers to perform operations such as saving to the database or sending responses back to the client.
   // this is working now for all the incoming requests to the server, so we can access the JSON data sent by the client in the request body using req.body in our route handlers. This is essential for handling POST requests where clients send data to the server, such as when creating a new user or updating user information.
+  app.use("/payment/webhook", express.raw({ type: "application/json", limit: "256kb" }));
   app.use(express.json());
   // This line of code is a middleware function in an Express.js application that parses incoming JSON payloads in the request body. When a client sends a request with a JSON payload (e.g., when creating a new user or updating user information), this middleware will automatically parse the JSON data and make it available in the `req.body` object for further processing in the route handlers. This allows you to easily access the data sent by the client and use it to perform operations such as saving to the database or sending responses back to the client.
   app.use(cookieParser()); // This line of code is a middleware function in an Express.js application that parses cookies attached to the client request object. When a client sends a request with cookies (e.g., for authentication or session management), this middleware will automatically parse the cookies and make them available in the `req.cookies` object for further processing in the route handlers. This allows you to easily access the cookies sent by the client and use them to perform operations such as verifying authentication tokens or managing user sessions in your application.
@@ -306,6 +308,8 @@ const createApp = () => {
   app.use("/", userRouter);
   app.use("/", emailRouter);
 
+  app.use("/", paymentRouter);
+
   // Get user by email
   // This API endpoint allows clients to retrieve a user from the database based on their email address. When a GET request is made to the /user endpoint with an emailId in the request body, the server will attempt to find a user document in the MongoDB collection that matches the provided emailId. If a user is found, it will return the user data in the response. If no user is found with the given emailId, it will return a 404 status code with a "User not found" message. If there is an error during the database query, it will return a 400 status code with an error message.
   app.get("/user", userAuth, async (req, res) => {
@@ -486,6 +490,7 @@ const startServer = async ({ port: customPort } = {}) => {
 
   // Establish a connection to the database before starting the server
   await connectDB();
+  await Promise.all([require("./models/payment").init(), require("./models/paymentWebhookEvent").init()]);
   startCronJob();
   startEmailFeedback();
 

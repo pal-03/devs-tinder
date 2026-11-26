@@ -16,4 +16,9 @@ module.exports = {
   sesToAddress: process.env.SES_TO_ADDRESS || "swayampal82@gmail.com",
   sesFeedbackQueueUrl: process.env.SES_FEEDBACK_QUEUE_URL || "",
   sesFeedbackTopicArn: process.env.SES_FEEDBACK_TOPIC_ARN || "",
+  razorpayKeyId: process.env.RAZORPAY_KEY_ID || "",
+  razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET || "",
+  razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || "",
+  razorpayMode: process.env.RAZORPAY_MODE || "test",
+  razorpayLiveEnabled: process.env.RAZORPAY_LIVE_ENABLED === "true",
 };
