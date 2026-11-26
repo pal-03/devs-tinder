@@ -21,6 +21,7 @@ const paymentView = payment => ({
 });
 
 const refreshMembership = async (userId, mode, session) => {
+  // A full refund disqualifies this purchase, but another unexpired purchase in the same mode can still grant access.
   const latest = await Payment.findOne({ userId, mode, status: { $in: ["captured", "partially_refunded"] }, membershipExpiresAt: { $gt: new Date() } })
     .sort({ fulfilledAt: -1, _id: -1 }).session(session);
   await User.updateOne({ _id: userId }, { $set: {
@@ -33,6 +34,7 @@ const refreshMembership = async (userId, mode, session) => {
 const fetchGatewayPayment = async (payment, paymentId) => {
   const client = gateway.getClient();
   if (paymentId) return client.payments.fetch(paymentId);
+  // One order can have several attempts. A failed attempt should not hide a successful retry.
   const result = await client.orders.fetchPayments(payment.orderId);
   return result.items.find(item => ["captured", "refunded"].includes(item.status))
     || result.items.find(item => item.status === "authorized") || result.items.at(-1);
@@ -46,11 +48,13 @@ const reconcilePayment = async (payment, { paymentId, event } = {}) => {
   }
   const session = await mongoose.startSession();
   try {
+    // Commit payment, membership and webhook receipt together. A failed write leaves the event available for retry.
     await session.withTransaction(async () => {
       if (event && await PaymentWebhookEvent.exists({ eventId: event.eventId }).session(session)) return;
       const current = await Payment.findById(payment._id).session(session);
       if (!current) throw fail("Payment order not found", 404);
       if (remote) {
+        // An older capture notification must not undo a refund we have already recorded.
         const refunded = Math.max(current.amountRefunded, Number(remote.amount_refunded || 0));
         if (refunded > 0 && refunded >= current.amount) {
           current.status = "refunded";
