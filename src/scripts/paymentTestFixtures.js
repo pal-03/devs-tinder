@@ -46,7 +46,10 @@ const run = async (action, runId) => {
 };
 
 if (require.main === module) {
-  run(...process.argv.slice(2, 4)).then(value => console.log(JSON.stringify(value))).catch(error => { console.error(error.message); process.exitCode = 1; }).finally(disconnectDB);
+  run(...process.argv.slice(2, 4)).then(value => console.log(JSON.stringify(value))).catch(error => {
+    console.error(JSON.stringify({ error: error.error?.code || error.name || "RazorpayError", message: error.error?.description || error.message || "Unable to complete payment fixture action", status: error.statusCode }));
+    process.exitCode = 1;
+  }).finally(disconnectDB);
 }
 
 module.exports = { run };
